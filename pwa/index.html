@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SolarGuard — Smart Home</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#040d1e">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="topbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="4" fill="#f59e0b"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="logo-text">SolarGuard</span>
+    </div>
+    <div class="status-cluster">
+      <span class="members-tag">3 members connected</span>
+      <div class="time-display" id="clock">--:--</div>
+    </div>
+  </header>
+
+  <!-- ALERT BANNER -->
+  <div id="alert-banner" class="alert-banner hidden">
+    <span id="alert-text">Unknown person detected at entrance</span>
+    <button onclick="dismissAlert()">✕</button>
+  </div>
+
+  <main id="main-content">
+
+    <!-- ── DASHBOARD ── -->
+    <section id="page-dashboard" class="page active">
+
+      <div class="occupancy-hero">
+        <div class="hero-ring" id="hero-ring">
+          <div class="ring-inner">
+            <div class="occ-label">OCCUPANCY</div>
+            <div class="occ-value" id="occ-display">—</div>
+            <div class="occ-sub" id="occ-sub">Waiting for data</div>
+          </div>
+        </div>
+        <div class="hero-meta">
+          <div class="badge" id="mode-badge">AUTO MODE</div>
+        </div>
+      </div>
+
+      <div class="section-label">LIVE SENSORS</div>
+      <div class="cards-grid">
+        <div class="card">
+          <div class="card-icon pir-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M6 19c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M2 8c2-4 6-6 10-6M22 8c-2-4-6-6-10-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".5"/></svg>
+          </div>
+          <div class="card-body"><div class="card-label">Motion</div><div class="card-value" id="pir-value">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-icon light-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="card-body"><div class="card-label">Light</div><div class="card-value" id="light-value">—</div></div>
+          <div class="card-bar-wrap"><div class="card-bar" id="light-bar"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-icon batt-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="18" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M20 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="card-body"><div class="card-label">Battery</div><div class="card-value" id="battery-value">—</div></div>
+          <div class="card-bar-wrap"><div class="card-bar batt-bar" id="batt-bar"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-icon temp-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="card-body"><div class="card-label">Temperature</div><div class="card-value" id="temp-value">—</div></div>
+          <div class="card-indicator" id="temp-indicator"></div>
+        </div>
+      </div>
+
+      <div class="section-label">ENERGY</div>
+      <div class="energy-row">
+        <div class="energy-box"><div class="e-num" id="energy-used">0.000</div><div class="e-label">kWh Used</div></div>
+        <div class="energy-divider"></div>
+        <div class="energy-box green"><div class="e-num" id="energy-saved">0.000</div><div class="e-label">kWh Saved</div></div>
+      </div>
+
+      <!-- ML SMART INSIGHT CARD (new unique feature) -->
+      <div class="section-label">AI SMART INSIGHT <span class="from-tag">powered by ML</span></div>
+      <div class="insight-card" id="insight-card">
+        <div class="insight-icon" id="insight-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <div class="insight-body">
+          <div class="insight-title" id="insight-title">Analyzing patterns...</div>
+          <div class="insight-desc" id="insight-desc">ML model is processing sensor history</div>
+        </div>
+        <div class="insight-score" id="insight-score">—</div>
+      </div>
+
+      <div class="section-label">SECURITY PEEK <span class="from-tag">from Raspberry Pi</span></div>
+      <div class="security-peek" id="sec-peek">
+        <div class="peek-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#22d3ee" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="peek-text">
+          <div class="peek-title" id="peek-status">Waiting for camera data...</div>
+          <div class="peek-sub" id="peek-time">—</div>
+        </div>
+        <div class="peek-badge" id="peek-badge">—</div>
+      </div>
+
+      <div class="section-label">SUSTAINABLE DEVELOPMENT GOALS</div>
+      <div class="sdg-block">
+        <div class="sdg-card sdg7">
+          <div class="sdg-num">7</div>
+          <div class="sdg-info">
+            <div class="sdg-title">Affordable & Clean Energy</div>
+            <div class="sdg-desc">Solar-powered system reduces dependency on grid electricity through smart automation.</div>
+          </div>
+        </div>
+        <div class="sdg-card sdg11">
+          <div class="sdg-num">11</div>
+          <div class="sdg-info">
+            <div class="sdg-title">Sustainable Cities</div>
+            <div class="sdg-desc">IoT smart home reduces urban energy waste through occupancy-based device control.</div>
+          </div>
+        </div>
+        <div class="sdg-card sdg9">
+          <div class="sdg-num">9</div>
+          <div class="sdg-info">
+            <div class="sdg-title">Industry, Innovation</div>
+            <div class="sdg-desc">ML-based prediction demonstrates applied AI for real-world infrastructure innovation.</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── CONTROL ── -->
+    <section id="page-control" class="page">
+
+      <div class="section-label">OPERATING MODE</div>
+      <div class="mode-selector">
+        <button class="mode-btn active" id="auto-btn" onclick="setMode('auto')">Auto</button>
+        <button class="mode-btn" id="manual-btn" onclick="setMode('manual')">Manual</button>
+      </div>
+
+      <div class="section-label">DEVICES</div>
+      <div class="device-list">
+
+        <div class="device-card">
+          <div class="device-info">
+            <div class="device-icon fan-col">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 10c0-2.76 1.67-5 4-5s4 2.24 4 5c0 1.1-.36 2.1-.96 2.9C17.52 14.1 15.76 15 14 15h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 14c0 2.76-1.67 5-4 5s-4-2.24-4-5c0-1.1.36-2.1.96-2.9C6.48 9.9 8.24 9 10 9h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="device-name">Ceiling Fan</div>
+              <div class="device-sub" id="fan-sub">Auto-controlled by occupancy</div>
+            </div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="fan-toggle" onchange="controlDevice('fan', this.checked)"><span class="slider"></span></label>
+        </div>
+
+        <div class="device-card">
+          <div class="device-info">
+            <div class="device-icon led-col">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 21h6M12 3a6 6 0 0 1 6 6c0 2.22-1.2 4.16-3 5.2V17a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-2.8C7.2 13.16 6 11.22 6 9a6 6 0 0 1 6-6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="device-name">Room LED</div>
+              <div class="device-sub" id="led-sub">Activates when dark + occupied</div>
+            </div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="led-toggle" onchange="controlDevice('led', this.checked)"><span class="slider"></span></label>
+        </div>
+
+        <!-- DOOR -->
+        <div class="device-card door-card" id="door-card">
+          <div class="device-info">
+            <div class="device-icon door-col" id="door-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="2" width="13" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <circle cx="14" cy="12" r="1.5" fill="currentColor"/>
+                <path d="M16 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="device-name">Entry Door</div>
+              <div class="device-sub" id="door-sub">Auto-locks on unknown detection</div>
+            </div>
+          </div>
+          <div class="door-right">
+            <div class="door-state-badge" id="door-state-badge">LOCKED</div>
+            <label class="toggle">
+              <input type="checkbox" id="door-toggle" onchange="controlDoor(this.checked)">
+              <span class="slider door-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DOOR LIVE STATE (no animation, static) -->
+      <div class="section-label">DOOR STATE</div>
+      <div class="door-live-panel" id="door-live-panel">
+        <div class="door-status-block">
+          <div class="door-state-text" id="door-state-text">LOCKED</div>
+          <div class="door-state-sub" id="door-state-sub">Secure — no entry</div>
+          <div class="door-auto-note">Auto-locks when unknown person detected</div>
+        </div>
+        <div class="door-lock-big" id="door-lock-big">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+
+      <!-- TEMPERATURE CONTROL (new) -->
+      <div class="section-label">TEMPERATURE CONTROL <span class="from-tag">smart comfort</span></div>
+      <div class="temp-control-card">
+        <div class="temp-top">
+          <div class="temp-display-wrap">
+            <div class="temp-label-small">SET POINT</div>
+            <div class="temp-big" id="temp-setpoint">24°C</div>
+            <div class="temp-hint">Optimal for comfort &amp; pets</div>
+          </div>
+          <div class="temp-live-wrap">
+            <div class="temp-label-small">ROOM NOW</div>
+            <div class="temp-live-val" id="temp-live-ctrl">—</div>
+            <div class="temp-dubai" id="dubai-weather-note">Dubai: fetching...</div>
+          </div>
+        </div>
+        <div class="temp-slider-wrap">
+          <span class="temp-min">16°C</span>
+          <input type="range" id="temp-slider" min="16" max="30" value="24" oninput="setTempTarget(this.value)">
+          <span class="temp-max">30°C</span>
+        </div>
+        <div class="temp-mode-row">
+          <button class="temp-mode-btn active" id="temp-auto-btn" onclick="setTempMode('auto')">Smart Auto</button>
+          <button class="temp-mode-btn" id="temp-manual-btn" onclick="setTempMode('manual')">Manual</button>
+          <div class="temp-status-badge" id="temp-status-badge">COOLING</div>
+        </div>
+        <div class="temp-dubai-card" id="dubai-card">
+          <div class="dubai-info">
+            <div class="dubai-title" id="dubai-temp-text">Dubai outdoor: —</div>
+            <div class="dubai-sub" id="dubai-advice">Fetching live weather...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">ML PREDICTION</div>
+      <div class="ml-info-box">
+        <div class="ml-row"><span class="ml-label">Model</span><span class="ml-val">Random Forest Classifier</span></div>
+        <div class="ml-row"><span class="ml-label">Features used</span><span class="ml-val">Light, PIR, Temp, Humidity, CO₂</span></div>
+        <div class="ml-row"><span class="ml-label">Last prediction</span><span class="ml-val" id="ctrl-last-pred">—</span></div>
+        <div class="ml-row"><span class="ml-label">Confidence</span><span class="ml-val" id="ctrl-confidence">—</span></div>
+        <div class="ml-row"><span class="ml-label">Comfort score</span><span class="ml-val" id="ctrl-comfort">—</span></div>
+        <div class="ml-row"><span class="ml-label">Energy risk</span><span class="ml-val" id="ctrl-energy-risk">—</span></div>
+      </div>
+    </section>
+
+    <!-- ── ANALYTICS ── -->
+    <section id="page-analytics" class="page">
+
+      <div class="section-label">SENSOR OVERVIEW <span class="from-tag">PIR · Light · Occupancy</span></div>
+      <div class="chart-wrap combined-chart-wrap">
+        <div class="chart-legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#a78bfa"></span>Motion</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#f59e0b"></span>Light</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#22c55e"></span>Occupancy</span>
+        </div>
+        <canvas id="combinedChart"></canvas>
+      </div>
+
+      <div class="section-label">WEEKLY ENERGY SAVINGS <span class="from-tag">kWh</span></div>
+      <div class="chart-wrap">
+        <canvas id="weeklyEnergyChart"></canvas>
+      </div>
+
+      <!-- OUT-C / IN-C Temperature Comparison -->
+      <div class="section-label">OUT-C / IN-C <span class="from-tag">outdoor vs indoor temperature</span></div>
+      <div class="chart-wrap">
+        <canvas id="tempCompareChart"></canvas>
+        <div class="temp-compare-note">Amber = Outdoor Dubai &nbsp;&middot;&nbsp; Cyan = Indoor Room &nbsp;&middot;&nbsp; weekly daily average</div>
+      </div>
+
+      <!-- MONITORING LOG -->
+      <div class="section-label">MONITORING LOG <span class="from-tag">ML event detection</span></div>
+      <div class="anomaly-list" id="anomaly-list">
+        <div class="empty-state">No events recorded yet</div>
+      </div>
+
+      <div class="section-label">MODEL COMPARISON</div>
+      <div class="model-table">
+        <div class="model-row header-row"><span>Model</span><span>Accuracy</span><span>F1</span></div>
+        <div class="model-row best-row"><span>Random Forest</span><span id="rf-acc">—</span><span id="rf-f1">—</span></div>
+        <div class="model-row"><span>SVM</span><span id="svm-acc">—</span><span id="svm-f1">—</span></div>
+        <div class="model-row"><span>Gradient Boosting</span><span id="gb-acc">—</span><span id="gb-f1">—</span></div>
+        <div class="model-row"><span>SVR</span><span id="svr-acc">—</span><span id="svr-f1">—</span></div>
+        <div class="model-row"><span>Decision Tree</span><span id="dt-acc">—</span><span id="dt-f1">—</span></div>
+      </div>
+
+    </section>
+
+    <!-- ── SECURITY ── -->
+    <section id="page-security" class="page">
+
+      <div class="sec-header-bar">
+        <div class="sec-status-dot" id="cam-dot"></div>
+        <span id="cam-label">Camera Offline</span>
+        <span class="from-tag">Raspberry Pi</span>
+      </div>
+
+      <div class="section-label">LIVE CAMERA</div>
+      <div class="camera-panel" id="camera-panel">
+        <div class="cam-feed" id="cam-feed">
+          <div class="cam-offline-msg" id="cam-offline-msg">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/><line x1="1" y1="1" x2="23" y2="23" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/></svg>
+            <div>Camera feed offline</div>
+            <div style="font-size:11px;opacity:.5;margin-top:4px">Connects when Raspberry Pi is online</div>
+          </div>
+        </div>
+        <div class="cam-overlay">
+          <div class="cam-datetime" id="cam-datetime">
+            <div class="cam-date" id="cam-date">—</div>
+            <div class="cam-time-live" id="cam-time-live">--:--:--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">LATEST DETECTION</div>
+      <div class="detection-card" id="latest-detection">
+        <div class="det-avatar" id="det-avatar">?</div>
+        <div class="det-info">
+          <div class="det-name" id="det-name">No detection yet</div>
+          <div class="det-time" id="det-time">—</div>
+          <div class="det-conf" id="det-conf">Confidence: —</div>
+        </div>
+        <div class="det-result" id="det-result">—</div>
+      </div>
+
+      <div class="section-label">ALERT HISTORY</div>
+      <div id="alert-list" class="alert-list">
+        <div class="empty-state">No alerts recorded</div>
+      </div>
+
+      <div class="section-label">INTEGRATION STATUS</div>
+      <div class="integration-grid">
+        <div class="int-item">
+          <span class="int-status-text inactive" id="int-esp32">Inactive</span>
+          <span class="int-item-label">ESP32</span>
+        </div>
+        <div class="int-item">
+          <span class="int-status-text inactive" id="int-rpi">Inactive</span>
+          <span class="int-item-label">Raspberry Pi</span>
+        </div>
+        <div class="int-item">
+          <span class="int-status-text inactive" id="int-mqtt">Inactive</span>
+          <span class="int-item-label">MQTT</span>
+        </div>
+        <div class="int-item">
+          <span class="int-status-text inactive" id="int-firebase">Inactive</span>
+          <span class="int-item-label">Firebase</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SETTINGS ── -->
+    <section id="page-settings" class="page">
+
+      <div class="section-label">FIREBASE CONFIG</div>
+      <div class="settings-block">
+        <label class="s-label">Realtime DB URL</label>
+        <input class="s-input" id="fb-url" type="text" placeholder="https://your-project.firebaseio.com">
+        <label class="s-label">API Key</label>
+        <input class="s-input" id="fb-key" type="text" placeholder="AIzaSy...">
+        <button class="s-btn" onclick="saveFirebaseConfig()">Save & Connect</button>
+        <div class="s-status" id="fb-status"></div>
+      </div>
+
+      <div class="section-label">MQTT BROKER</div>
+      <div class="settings-block">
+        <div class="ml-row"><span class="ml-label">Broker</span><span class="ml-val">broker.hivemq.com</span></div>
+        <div class="ml-row"><span class="ml-label">Port (WS)</span><span class="ml-val">8884</span></div>
+        <div class="ml-row"><span class="ml-label">Sensor topic</span><span class="ml-val">solarguard/sensors</span></div>
+        <div class="ml-row"><span class="ml-label">Security topic</span><span class="ml-val">solarguard/security</span></div>
+        <div class="ml-row"><span class="ml-label">Status</span><span class="ml-val" id="mqtt-text">Connecting...</span></div>
+      </div>
+
+      <div class="section-label">SERVER</div>
+      <div class="settings-block">
+        <label class="s-label">ESP32 Server URL (fallback)</label>
+        <input class="s-input" id="server-url" type="text" value="http://192.168.1.19:5000/predict">
+        <button class="s-btn" onclick="saveServerUrl()">Save</button>
+        <div class="s-status" id="server-status"></div>
+      </div>
+
+      <div class="section-label">CAMERA STREAM</div>
+      <div class="settings-block">
+        <label class="s-label">Raspberry Pi IP Address</label>
+        <input class="s-input" id="rpi-ip" type="text" placeholder="192.168.1.x" value="">
+        <button class="s-btn" onclick="saveRpiIp()">Connect Live Camera</button>
+        <div class="s-status" id="cam-status"></div>
+      </div>
+
+      <div class="credits-block">
+        <div class="credits-title">SolarGuard</div>
+        <div class="credits-names">Rehan &nbsp;·&nbsp; Hadi &nbsp;·&nbsp; M Sajid</div>
+        <div class="credits-sub">Group Project · IoT + AI + Solar Energy · URIC 2026</div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('control')" id="nav-control">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>Control</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('analytics')" id="nav-analytics">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Analytics</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('security')" id="nav-security">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Security</span>
+      <span class="nav-badge" id="sec-badge" style="display:none">0</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('settings')" id="nav-settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

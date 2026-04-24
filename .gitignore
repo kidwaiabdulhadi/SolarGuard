@@ -1,0 +1,26 @@
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+ENV/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+node_modules/
+.gradle/
+build/
+
+# Data
+*.csv
+!machine-learning/smart_room_dataset_v3.csv
